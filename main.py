@@ -68,9 +68,7 @@ class Procedimientos:
         butt2 = ttk.Button(frame2, text='Metropolis', command=self.metropolis_prod)
         butt2.pack(pady=10, padx=20, fill='both', expand=True)
         
-        
-
-        # Agregar Label para mostrar resultado de la conexión
+          # Agregar Label para mostrar resultado de la conexión
         self.result_label2 = tk.Label(frame2, text='', anchor="w")
         self.result_label2.pack(padx=10, pady=10)
 
@@ -285,16 +283,20 @@ class Procedimientos:
        # ...
 
         # Configurar las columnas en el Treeview
-        self.tree2['columns'] = ('ID', 'Nombre Fantasia', 'Emisor ID', 'Fecha/Hora Inicio', 'Estado', 'Cant Documentos')
+        self.tree2['columns'] = ('ID', 'Nombre Fantasia', 'Emisor ID', 'Fecha/Hora Inicio', 'Estado', 'Cant Doc.')
         self.tree2.heading('#0', text='', anchor='w')
         self.tree2.column('#0', width=0, stretch=tk.NO)
 
+        
+        # Configurar tamaños de las columnas
+        self.tree2.column('ID', width=50)
+        self.tree2.column('Emisor ID', width=60)
+        self.tree2.column('Cant Doc.', width=60)
+        
         for column in self.tree2['columns']:
             self.tree2.heading(column, text=column)
             self.tree2.column(column, anchor='center')
-
-        # ...
-
+       
         for row in results:
             # Insertar las columnas en el Treeview
             self.tree2.insert("", tk.END, text="", values=row)
