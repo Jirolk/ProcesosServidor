@@ -15,8 +15,7 @@ class Procedimientos:
         self.wind.geometry("900x600")
         self.server_test = server_test
         self.server_prod = server_prod
-        self.server_claro = server_claro
-        
+        self.server_claro = server_claro        
         self.db_user = db_user
         self.db_password = db_password
         self.db_name = db_name
@@ -44,6 +43,8 @@ class Procedimientos:
         button1.pack(pady=10,padx=20, fill='both', expand=True)
         butt1 = ttk.Button(frame1, text='Metropolis', command=self.metropolis_test)
         butt1.pack(pady=10, padx=20, fill='both', expand=True)
+        btn1 = ttk.Button(frame1, text='Respuesta de la SET', command=self.respuestaSET_test)
+        btn1.pack(pady=10, padx=20, fill='both', expand=True)
         
 
         # Agregar Label para mostrar resultado de la conexión
@@ -56,18 +57,21 @@ class Procedimientos:
         self.tree1.pack(padx=10, pady=10, fill='both', expand=True)
 
         self.tree1.bind("<ButtonRelease-1>", self.selected_item)
+      
         self.result_label1.configure(text='Sin Conexión...')
 
         # Tab 2
         frame2 = tk.LabelFrame(self.tab2, text='Ver procesos Activos')
         frame2.pack(pady=20, padx=20, fill='both', expand=True)
-
         button2 = ttk.Button(frame2, text='Procesos Activos', command=self.execute_stored_procedure_prod)
         button2.pack(pady=10, padx=20, fill='both', expand=True)
-        
+              
         butt2 = ttk.Button(frame2, text='Metropolis', command=self.metropolis_prod)
         butt2.pack(pady=10, padx=20, fill='both', expand=True)
         
+        btn2 = ttk.Button(frame2, text='Respuesta de la SET', command=self.respuestaSET_prod)
+        btn2.pack(pady=10, padx=20, fill='both', expand=True)
+         
           # Agregar Label para mostrar resultado de la conexión
         self.result_label2 = tk.Label(frame2, text='', anchor="w")
         self.result_label2.pack(padx=10, pady=10)
@@ -193,6 +197,8 @@ class Procedimientos:
         # Cierra la conexión
         conn.close()
 
+##################  PROD
+
     def execute_stored_procedure_prod(self):
         self.result_label2.configure(text='Conectando...')
 
@@ -304,7 +310,113 @@ class Procedimientos:
 
         # Cierra la conexión
         conn.close()
+    
+    def respuestaSET_prod(self):
+        self.result_label2.configure(text='Conectando...')
+        # Crea una conexión con la base de datos
+        try:
+            conn = psycopg2.connect(
+                host=self.server_prod,
+                user='postgres',
+                password=self.db_password,
+                dbname='metropolis'
+            )
+            self.result_label2.configure(text='Conexión exitosa Servidor MultiProd Verificando respuesta de la SET')
+        except psycopg2.Error as error:
+            self.result_label2.configure(text=f'Error al conectar a la base de datos: {error}', wraplength=500)
+            return
+        # Crea una instancia del cursor
+        cursor = conn.cursor()
+        # Ejecuta la consulta
+        cursor.execute('''SELECT emi.nombre_fantasia, ars.fecha_hora, ars.proceso_id,  ars.resultado, categoria
+        FROM app_respuesta_set ars 
+        INNER JOIN public.proc_proceso p ON p.id = ars.proceso_id
+        INNER JOIN public.app_emisor emi ON emi.id = p.emisor_id 
+        INNER JOIN ( SELECT MAX(fecha_hora) AS ultima_fecha, p.emisor_id
+            FROM app_respuesta_set ars
+            INNER JOIN public.proc_proceso p ON p.id = ars.proceso_id
+            --AND ars.fecha_hora  > CURRENT_TIMESTAMP - INTERVAL '48 hours'
+            GROUP BY p.emisor_id
+        ) ultima_fecha_emisor ON ars.fecha_hora = ultima_fecha_emisor.ultima_fecha AND p.emisor_id = ultima_fecha_emisor.emisor_id
+        where p.estado not in ('FINALIZADO', 'FINALIZADO_ERROR')
+        ORDER BY ars.fecha_hora desc;''')
 
+        # Recupera los resultados de la consulta
+        results = cursor.fetchall()
+
+        # Mostrar el resultado en el Treeview
+        self.tree2.delete(*self.tree2.get_children())
+        # Configurar las columnas en el Treeview
+        self.tree2['columns'] = ('ID','Cliente', 'fecha_hora', 'proceso_id', 'resultado','categoria')
+        self.tree2.heading('#0', text='', anchor='w')
+        self.tree2.column('#0', width=0, stretch=tk.NO)
+
+        # # Configurar tamaños de las columnas
+        self.tree2.column('ID', width=10)
+        self.tree2.column('resultado', stretch=tk.YES)
+        # self.tree1.column('Cant Doc.', width=60)      
+
+
+        for column in self.tree2['columns']:            
+            self.tree2.heading(column, text=column)
+            self.tree2.column(column, anchor='center')
+        
+                       
+        cont=1
+        for row in results:
+            # Insertar las columnas en el Treeview
+            self.tree2.insert("", tk.END, values=(cont, *row))
+            cont+=1            
+        
+        self.tree2.bind("<ButtonRelease-1>", self.mostrar_info_fila_prod)
+        # Cierra la conexión
+        conn.close()
+
+
+    def mostrar_info_fila_prod(self, event):
+       # Verificar si la ventana de información ya está abierta
+        if hasattr(self, 'info_window') and self.info_window.winfo_exists():
+            # Si la ventana existe, actualizar los valores y salir
+            self.info_text.configure(state='normal')
+            self.info_text.delete('1.0', tk.END)
+            self.info_text.insert(tk.END, self.values)
+            self.info_text.configure(state='disabled')
+            return
+
+        # Obtener el índice de la fila seleccionada
+        selected_item = self.tree2.selection()[0]
+        # Obtener los valores de la fila seleccionada
+        self.values = self.tree2.item(selected_item)['values'][4]
+
+        # Crear la ventana de información
+        self.info_window = tk.Toplevel(self.wind)
+        self.info_window.title('Respuesta de la SET')
+
+        # Crear un widget Text para mostrar los valores
+        self.info_text = tk.Text(self.info_window, wrap=tk.WORD)
+        self.info_text.pack(padx=10, pady=10, fill='both', expand=True)
+
+        self.info_text.insert(tk.END, self.values)
+        self.info_text.configure(state='disabled')
+
+        # Agregar un control de desplazamiento vertical
+        scrollbar = tk.Scrollbar(self.info_window, command=self.info_text.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.info_text.config(yscrollcommand=scrollbar.set)
+
+        # Ajustar el tamaño de la ventana de información al contenido
+        self.info_window.update_idletasks()
+        width = self.info_window.winfo_reqwidth()
+        height = self.info_window.winfo_reqheight()
+        self.info_window.geometry(f"{width}x{height}")
+
+        # Hacer que la ventana principal no sea accesible mientras se muestra la ventana de información
+        self.wind.grab_set()
+
+        # Manejar el evento de cierre de la ventana de información
+        self.info_window.protocol("WM_DELETE_WINDOW", self.cerrar_info_fila)
+
+##################    TEST
     def execute_stored_procedure(self):
         self.result_label1.configure(text='Conectando...')
 
@@ -408,6 +520,115 @@ class Procedimientos:
         # Cierra la conexión
         conn.close()
 
+    def respuestaSET_test(self):
+        self.result_label1.configure(text='Conectando...')
+        # Crea una conexión con la base de datos
+        try:
+            conn = psycopg2.connect(
+                host=self.server_test,
+                user='postgres',
+                password=self.db_password,
+                dbname='metropolis'
+            )
+            self.result_label1.configure(text='Conexión exitosa Servidor Test Verificando respuesta de la SET')
+        except psycopg2.Error as error:
+            self.result_label1.configure(text=f'Error al conectar a la base de datos: {error}', wraplength=500)
+            return
+        # Crea una instancia del cursor
+        cursor = conn.cursor()
+        # Ejecuta la consulta
+        cursor.execute('''SELECT emi.nombre_fantasia, ars.fecha_hora, ars.proceso_id,  ars.resultado, categoria
+        FROM app_respuesta_set ars 
+        INNER JOIN public.proc_proceso p ON p.id = ars.proceso_id
+        INNER JOIN public.app_emisor emi ON emi.id = p.emisor_id 
+        INNER JOIN ( SELECT MAX(fecha_hora) AS ultima_fecha, p.emisor_id
+            FROM app_respuesta_set ars
+            INNER JOIN public.proc_proceso p ON p.id = ars.proceso_id
+            --AND ars.fecha_hora  > CURRENT_TIMESTAMP - INTERVAL '48 hours'
+            GROUP BY p.emisor_id
+        ) ultima_fecha_emisor ON ars.fecha_hora = ultima_fecha_emisor.ultima_fecha AND p.emisor_id = ultima_fecha_emisor.emisor_id
+        where p.estado not in ('FINALIZADO', 'FINALIZADO_ERROR')
+        ORDER BY ars.fecha_hora desc;''')
+
+        # Recupera los resultados de la consulta
+        results = cursor.fetchall()
+
+        # Mostrar el resultado en el Treeview
+        self.tree1.delete(*self.tree1.get_children())
+        # Configurar las columnas en el Treeview
+        self.tree1['columns'] = ('ID','Cliente', 'fecha_hora', 'proceso_id', 'resultado','categoria')
+        self.tree1.heading('#0', text='', anchor='w')
+        self.tree1.column('#0', width=0, stretch=tk.NO)
+
+        # # Configurar tamaños de las columnas
+        self.tree1.column('ID', width=10)
+        self.tree1.column('resultado', stretch=tk.YES)
+        # self.tree1.column('Cant Doc.', width=60)      
+
+
+        for column in self.tree1['columns']:            
+            self.tree1.heading(column, text=column)
+            self.tree1.column(column, anchor='center')
+        
+                       
+        cont=1
+        for row in results:
+            # Insertar las columnas en el Treeview
+            self.tree1.insert("", tk.END, values=(cont, *row))
+            cont+=1            
+        
+        self.tree1.bind("<ButtonRelease-1>", self.mostrar_info_fila)
+        # Cierra la conexión
+        conn.close()
+
+    def mostrar_info_fila(self, event):
+       # Verificar si la ventana de información ya está abierta
+        if hasattr(self, 'info_window') and self.info_window.winfo_exists():
+            # Si la ventana existe, actualizar los valores y salir
+            self.info_text.configure(state='normal')
+            self.info_text.delete('1.0', tk.END)
+            self.info_text.insert(tk.END, self.values)
+            self.info_text.configure(state='disabled')
+            return
+
+        # Obtener el índice de la fila seleccionada
+        selected_item = self.tree1.selection()[0]
+        # Obtener los valores de la fila seleccionada
+        self.values = self.tree1.item(selected_item)['values'][4]
+
+        # Crear la ventana de información
+        self.info_window = tk.Toplevel(self.wind)
+        self.info_window.title('Respuesta de la SET')
+
+        # Crear un widget Text para mostrar los valores
+        self.info_text = tk.Text(self.info_window, wrap=tk.WORD)
+        self.info_text.pack(padx=10, pady=10, fill='both', expand=True)
+
+        self.info_text.insert(tk.END, self.values)
+        self.info_text.configure(state='disabled')
+
+        # Agregar un control de desplazamiento vertical
+        scrollbar = tk.Scrollbar(self.info_window, command=self.info_text.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.info_text.config(yscrollcommand=scrollbar.set)
+
+        # Ajustar el tamaño de la ventana de información al contenido
+        self.info_window.update_idletasks()
+        width = self.info_window.winfo_reqwidth()
+        height = self.info_window.winfo_reqheight()
+        self.info_window.geometry(f"{width}x{height}")
+
+        # Hacer que la ventana principal no sea accesible mientras se muestra la ventana de información
+        self.wind.grab_set()
+
+        # Manejar el evento de cierre de la ventana de información
+        self.info_window.protocol("WM_DELETE_WINDOW", self.cerrar_info_fila)
+
+    def cerrar_info_fila(self):
+        # Liberar el bloqueo de la ventana principal
+        self.wind.grab_release()
+        # Cerrar la ventana de información
+        self.info_window.destroy()
 
 
 
