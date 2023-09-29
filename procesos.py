@@ -23,7 +23,7 @@ class ProcedimientosApp:
         frame.pack(pady=20, padx=20, fill='both', expand=True)
         
         for button_text, action in db_info['buttons']:
-            button = ttk.Button(frame, text=button_text, command=action)
+            button = ttk.Button(frame, text=button_text, command=self.action)
             button.pack(pady=10, padx=20, fill='both', expand=True)
         
         result_label = tk.Label(frame, text='', anchor="w")
@@ -245,7 +245,6 @@ class ProcedimientosApp:
             item = event.widget.item(selected, 'values')[0]
             print(item)
 
-
 def main():
     load_dotenv()
     
@@ -253,7 +252,7 @@ def main():
         'test_db': {
             'tab_text': 'Test',
             'frame_text': 'Ver procesos Activos',
-            'buttons': [('Procesos Activos', self.execute_stored_procedure), ('Metropolis', None), ('Respuesta de la SET', None)],
+            'buttons': [('Procesos Activos', ), ('Metropolis', None), ('Respuesta de la SET', None)],
             'db_server': os.getenv('SERVER_TEST'),
             'db_user': os.getenv('DB_USER'),
             'db_password': os.getenv('DB_PASSWORD'),
@@ -262,7 +261,7 @@ def main():
         'produccion_db': {
             'tab_text': 'Producción',
             'frame_text': 'Ver procesos Activos',
-            'buttons': [('Procesos Activos', None), ('Metropolis', None), ('Respuesta de la SET', None)],
+            'buttons': [('Procesos Activos', 'execute_stored_procedure'), ('Metropolis', None), ('Respuesta de la SET', None)],
             'db_server': os.getenv('SERVER_TEST'),
             'db_user': os.getenv('DB_USER'),
             'db_password': os.getenv('DB_PASSWORD'),

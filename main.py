@@ -197,7 +197,7 @@ class Procedimientos:
         # Cierra la conexión
         conn.close()
 
-##################  PROD
+  ##################  PROD
 
     def execute_stored_procedure_prod(self):
         self.result_label2.configure(text='Conectando...')
@@ -416,7 +416,7 @@ class Procedimientos:
         # Manejar el evento de cierre de la ventana de información
         self.info_window.protocol("WM_DELETE_WINDOW", self.cerrar_info_fila)
 
-##################    TEST
+ ##################    TEST
     def execute_stored_procedure(self):
         self.result_label1.configure(text='Conectando...')
 
